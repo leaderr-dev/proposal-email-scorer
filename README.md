@@ -2,7 +2,7 @@
 
 A single file, dependency free tool that scores a sales proposal email out of 100 before you send it.
 
-**Live demo:** https://leaderr-io.github.io/proposal-email-scorer/
+**Live demo:** https://leaderr-dev.github.io/proposal-email-scorer/
 
 Paste a subject line and body, and it returns a score plus eight checks. Everything runs in the browser. No build step, no framework, no network request, nothing leaves the page.
 
@@ -30,7 +30,7 @@ The subject band comes from mobile clients truncating around 40 to 55 characters
 Open `index.html` in a browser. That is the whole install.
 
 ```
-git clone https://github.com/leaderr-io/proposal-email-scorer.git
+git clone https://github.com/leaderr-dev/proposal-email-scorer.git
 open proposal-email-scorer/index.html
 ```
 
