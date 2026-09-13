@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal Email Scorer — score a sales proposal email before you send it</title>
+<meta name="description" content="Paste a sales proposal email and get a 0-100 deliverability and clarity score: spam trigger words, subject length, reading grade, CTA check and personalisation check. Free, no signup, runs in your browser.">
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --ink:#14181f; --muted:#5b6472; --line:#e2e6ec;
+  --good:#1a7f4b; --warn:#a6690a; --bad:#b3261e; --accent:#2b5fd9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:28px 18px 64px}
+header h1{font-size:1.65rem;line-height:1.25;margin:0 0 8px}
+header p.sub{margin:0 0 22px;color:var(--muted);max-width:62ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+label{display:block;font-weight:600;font-size:.85rem;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fcfcfd;color:var(--ink)}
+textarea{min-height:190px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92rem}
+.row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.row>div{flex:1 1 240px}
+button{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:11px 20px;font:600 1rem/1 inherit;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+button:hover{filter:brightness(1.06)}
+.score-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.dial{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;font:700 1.7rem/1 inherit;color:#fff;flex:0 0 auto}
+.verdict{font-weight:700;font-size:1.1rem;margin:0 0 2px}
+.verdict+p{margin:0;color:var(--muted);font-size:.93rem}
+ul.checks{list-style:none;padding:0;margin:18px 0 0}
+ul.checks li{border-top:1px solid var(--line);padding:11px 0 11px 26px;position:relative}
+ul.checks li:before{position:absolute;left:0;top:11px;font-weight:700}
+li.pass:before{content:"✓";color:var(--good)}
+li.warn:before{content:"!";color:var(--warn)}
+li.fail:before{content:"×";color:var(--bad);font-size:1.15rem;line-height:1}
+.ck-title{font-weight:600}
+.ck-note{color:var(--muted);font-size:.9rem}
+.stats{display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.stat b{display:block;font-size:1.25rem}
+.stat span{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+.cta{background:#eef2fd;border:1px solid #cfdbf8;border-radius:10px;padding:16px 18px;margin-top:20px}
+.cta p{margin:0;font-size:.95rem}
+a{color:var(--accent)}
+footer{color:var(--muted);font-size:.85rem;margin-top:26px}
+.hidden{display:none}
+mark{background:#ffe8a3;padding:0 2px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Proposal Email Scorer</h1>
+  <p class="sub">Paste a sales proposal email and get a 0&ndash;100 score before you send it. Checks subject length, spam trigger words, reading grade, length, call to action, personalisation and the you-to-us ratio. Everything runs in your browser &mdash; nothing is uploaded, no signup.</p>
+</header>
+
+<div class="card">
+  <div class="row">
+    <div>
+      <label for="subj">Subject line</label>
+      <input type="text" id="subj" placeholder="Quick idea for Acme's onboarding flow">
+    </div>
+    <div>
+      <label for="co">Prospect company name (for the personalisation check)</label>
+      <input type="text" id="co" placeholder="Acme">
+    </div>
+  </div>
+  <label for="body">Email body</label>
+  <textarea id="body" placeholder="Hi Dana,&#10;&#10;I noticed Acme added three SDRs last quarter...&#10;&#10;Worth a 15 minute call on Thursday?"></textarea>
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+    <button id="run">Score this email</button>
+    <button id="demo" class="ghost">Load a sample</button>
+  </div>
+</div>
+
+<div class="card hidden" id="out">
+  <div class="score-head">
+    <div class="dial" id="dial">0</div>
+    <div>
+      <p class="verdict" id="verdict"></p>
+      <p id="verdictNote"></p>
+    </div>
+  </div>
+  <ul class="checks" id="checks"></ul>
+  <div class="stats" id="stats"></div>
+  <div class="cta">
+    <p>Rather not write it from scratch? The <a href="https://www.leaderr.io/proposal-generator" target="_blank" rel="noopener">leaderr.io proposal generator</a> drafts a personalised proposal email from your site and your prospect's site, and the <a href="https://www.leaderr.io/dossier-generator" target="_blank" rel="noopener">leaderr.io dossier generator</a> gives you the company research to personalise it with.</p>
+  </div>
+</div>
+
+<footer>
+  MIT licensed. Scoring is deterministic and rule based &mdash; no model, no API call, no data leaves the page.
+</footer>
+</div>
+
+<script>
+(function(){
+  var SPAM = ["act now","apply now","best price","billion","cash bonus","cheap","click here","congratulations","credit card","dear friend","discount","don't delete","double your","earn extra cash","eliminate debt","exclusive deal","expire","extra income","fast cash","for free","free access","free consultation","free gift","free quote","free trial","get paid","giveaway","guarantee","guaranteed","incredible deal","increase sales","instant","investment","limited time","lowest price","make money","miracle","money back","no catch","no cost","no credit check","no fees","no obligation","no risk","no strings","offer expires","once in a lifetime","one time","only $","order now","outstanding value","pre-approved","price protection","risk free","satisfaction guaranteed","save big","serious cash","special promotion","this isn't spam","this won't last","urgent","while supplies last","why pay more","winner","you have been selected","100% free","100% satisfied"];
+  var CTA = ["are you open","are you free","worth a","would you be open","do you have time","can we","could we","let me know","reply","book a","grab a","15 minutes","15 min","20 minutes","30 minutes","quick call","hop on a call","schedule","calendar","does thursday","does tuesday","does monday","does wednesday","does friday","interested?","open to","up for"];
+
+  function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]});}
+  function words(t){return (t.trim().match(/[A-Za-z0-9'’\-]+/g)||[]);}
+  function sentences(t){var s=t.split(/[.!?]+(?=\s|$)/).filter(function(x){return x.trim().length>1;});return s.length||1;}
+  function syl(w){
+    w=w.toLowerCase().replace(/[^a-z]/g,"");
+    if(!w) return 0;
+    if(w.length<=3) return 1;
+    w=w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,"").replace(/^y/,"");
+    var m=w.match(/[aeiouy]{1,2}/g);
+    return m?m.length:1;
+  }
+  function grade(t){
+    var w=words(t), s=sentences(t);
+    if(w.length<10) return null;
+    var sy=0; for(var i=0;i<w.length;i++) sy+=syl(w[i]);
+    return 0.39*(w.length/s)+11.8*(sy/w.length)-15.59;
+  }
+  function findSpam(t){
+    var low=" "+t.toLowerCase()+" ", hits=[];
+    for(var i=0;i<SPAM.length;i++){ if(low.indexOf(SPAM[i])>-1) hits.push(SPAM[i]); }
+    return hits;
+  }
+  function hasCTA(t){
+    var low=t.toLowerCase();
+    for(var i=0;i<CTA.length;i++){ if(low.indexOf(CTA[i])>-1) return true; }
+    return /\?\s*$/.test(t.trim());
+  }
+
+  function score(){
+    var subj=document.getElementById("subj").value.trim();
+    var body=document.getElementById("body").value.trim();
+    var co=document.getElementById("co").value.trim();
+    if(!body){ alert("Paste the email body first."); return; }
+
+    var checks=[], total=0, max=0;
+    var w=words(body), wc=w.length;
+    var allSpam=findSpam(subj+" \n "+body);
+
+    // 1. subject length
+    max+=15;
+    if(!subj){
+      checks.push(["fail","No subject line","Add one. The subject decides whether the body is ever read."]);
+    } else if(subj.length>=28 && subj.length<=55){
+      total+=15; checks.push(["pass","Subject length is "+subj.length+" characters","In the 28-55 range that survives mobile truncation."]);
+    } else if(subj.length<28){
+      total+=8; checks.push(["warn","Subject is "+subj.length+" characters","Short subjects read as automated. 28-55 is the safer band."]);
+    } else {
+      total+=6; checks.push(["warn","Subject is "+subj.length+" characters","Gmail on mobile cuts around 40-55. The end will be hidden."]);
+    }
+
+    // 2. subject style
+    max+=10;
+    var caps=(subj.match(/\b[A-Z]{3,}\b/g)||[]).length;
+    var bangs=(subj.match(/[!]/g)||[]).length;
+    if(caps===0 && bangs===0){
+      total+=10; checks.push(["pass","Subject has no shouting","No all-caps words and no exclamation marks."]);
+    } else {
+      total+=3; checks.push(["fail","Subject uses "+(caps?caps+" all-caps word(s)":"")+(caps&&bangs?" and ":"")+(bangs?bangs+" exclamation mark(s)":""),"Both are classic filter triggers. Write it flat."]);
+    }
+
+    // 3. spam words
+    max+=20;
+    if(allSpam.length===0){
+      total+=20; checks.push(["pass","No spam trigger phrases found","Checked against "+SPAM.length+" common filter phrases."]);
+    } else if(allSpam.length<=2){
+      total+=10; checks.push(["warn",allSpam.length+" spam trigger phrase(s): "+allSpam.map(esc).join(", "),"Rewrite these. One or two is survivable, but they add up with other signals."]);
+    } else {
+      checks.push(["fail",allSpam.length+" spam trigger phrases: "+allSpam.map(esc).join(", "),"This many together is enough on its own to route you to promotions or spam."]);
+    }
+
+    // 4. length
+    max+=15;
+    if(wc>=50 && wc<=150){
+      total+=15; checks.push(["pass","Body is "+wc+" words","In the 50-150 band that gets replies on a first touch."]);
+    } else if(wc<50){
+      total+=7; checks.push(["warn","Body is "+wc+" words","Too short to earn a reply. There is no reason to say yes yet."]);
+    } else if(wc<=250){
+      total+=8; checks.push(["warn","Body is "+wc+" words","Over 150 and reply rates fall. Cut to one idea and one ask."]);
+    } else {
+      total+=2; checks.push(["fail","Body is "+wc+" words","Nobody reads a cold "+wc+"-word email. Cut it to under 150."]);
+    }
+
+    // 5. reading grade
+    max+=10;
+    var g=grade(body);
+    if(g===null){
+      total+=5; checks.push(["warn","Too short to grade","Reading level needs at least 10 words."]);
+    } else if(g<=8){
+      total+=10; checks.push(["pass","Reads at grade "+g.toFixed(1),"Plain language. Grade 8 or below is the target."]);
+    } else if(g<=11){
+      total+=6; checks.push(["warn","Reads at grade "+g.toFixed(1),"Shorten sentences and swap long words for short ones."]);
+    } else {
+      total+=2; checks.push(["fail","Reads at grade "+g.toFixed(1),"Dense. Long sentences and abstract nouns are doing the damage."]);
+    }
+
+    // 6. CTA
+    max+=15;
+    if(hasCTA(body)){
+      total+=15; checks.push(["pass","There is a clear ask","The email closes with something the reader can answer."]);
+    } else {
+      checks.push(["fail","No clear call to action","End with one specific, low-effort ask, not 'let me know your thoughts'."]);
+    }
+
+    // 7. personalisation
+    max+=10;
+    if(co){
+      var n=(body.toLowerCase().match(new RegExp(co.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"g"))||[]).length;
+      if(n>=1){
+        total+=10; checks.push(["pass","Mentions "+esc(co)+" "+n+" time"+(n>1?"s":""),"The prospect's company appears in the body."]);
+      } else {
+        checks.push(["fail","Never mentions "+esc(co),"Nothing here could not have been sent to a thousand other companies."]);
+      }
+    } else {
+      total+=5; checks.push(["warn","Personalisation not checked","Enter the prospect company name to run this check."]);
+    }
+
+    // 8. you vs us
+    max+=5;
+    var you=(body.match(/\b(you|your|you're|yours)\b/gi)||[]).length;
+    var us=(body.match(/\b(i|we|our|us|my|i'm|we're)\b/gi)||[]).length;
+    if(you>=us){
+      total+=5; checks.push(["pass","You-to-us ratio "+you+":"+us,"The email is about them, which is why it gets read."]);
+    } else {
+      total+=1; checks.push(["warn","You-to-us ratio "+you+":"+us,"You talk about yourself more than about them. Flip it."]);
+    }
+
+    var pct=Math.round(total/max*100);
+    render(pct, checks, {wc:wc, sen:sentences(body), grade:g, spam:allSpam.length, subj:subj.length});
+  }
+
+  function render(pct, checks, st){
+    var out=document.getElementById("out");
+    var dial=document.getElementById("dial");
+    var col = pct>=80?"#1a7f4b" : pct>=60?"#a6690a" : "#b3261e";
+    dial.style.background=col; dial.textContent=pct;
+    var v = pct>=80?"Ready to send" : pct>=60?"Fixable, not ready" : "Do not send this yet";
+    var vn = pct>=80?"Nothing here is likely to get you filtered or ignored."
+          : pct>=60?"The structure is there. Clear the flagged items below first."
+          : "Enough problems here that the send is mostly wasted.";
+    document.getElementById("verdict").textContent=v;
+    document.getElementById("verdictNote").textContent=vn;
+
+    document.getElementById("checks").innerHTML = checks.map(function(c){
+      return '<li class="'+c[0]+'"><span class="ck-title">'+c[1]+'</span><br><span class="ck-note">'+c[2]+'</span></li>';
+    }).join("");
+
+    document.getElementById("stats").innerHTML =
+      '<div class="stat"><b>'+st.wc+'</b><span>words</span></div>'+
+      '<div class="stat"><b>'+st.sen+'</b><span>sentences</span></div>'+
+      '<div class="stat"><b>'+(st.grade===null?"&mdash;":st.grade.toFixed(1))+'</b><span>reading grade</span></div>'+
+      '<div class="stat"><b>'+st.spam+'</b><span>spam phrases</span></div>'+
+      '<div class="stat"><b>'+st.subj+'</b><span>subject chars</span></div>';
+
+    out.classList.remove("hidden");
+    out.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  document.getElementById("run").addEventListener("click", score);
+  document.getElementById("demo").addEventListener("click", function(){
+    document.getElementById("subj").value="Acme's three new SDRs and their first 90 days";
+    document.getElementById("co").value="Acme";
+    document.getElementById("body").value="Hi Dana,\n\nAcme posted three SDR roles in June and filled them by August. That usually means your ramp plan gets written after the hires start, not before.\n\nTwo teams in the same spot last quarter mapped the first 90 days before day one. Their reps booked meetings in week three instead of week seven.\n\nWorth 15 minutes on Thursday to show you what changed for them?\n\nMichael";
+    score();
+  });
+})();
+</script>
+</body>
+</html>
